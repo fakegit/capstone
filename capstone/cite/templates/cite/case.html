@@ -1,8 +1,9 @@
 {% extends "layouts/base.html" %}
 {% load pipeline %}
 {% load static %}
-{% load render_bundle from webpack_loader %}
+{% load django_vite %}
 {% load api_url %}
+{% load docs_url %}
 {% load redaction %}
 {% load humanize %}
 
@@ -27,19 +28,10 @@
       caseId: {{ db_case.id }}
     };
   </script>
-  {% render_bundle 'case' %}
+  {% vite_asset 'static/js/case/main.js' %}
 {% endblock %}
 
 {% block title_section %}
-  {% if not request.user.is_authenticated %}
-    <div class="alert alert-success m-0" role="alert">
-      Welcome to the Caselaw Access Project! We allow free access to up to 500 cases per person per day &mdash; see
-      our
-      <a href="{% url 'terms' %}">terms of use</a> for details. <a href="{% url 'register' %}">Sign up for an
-      account</a>
-      to use our API or apply for unlimited research scholar access.
-    </div>
-  {% endif %}
   <div class="sr-only sr-only-focusable" tabindex="0">
     Press Ctrl + / (Windows, Chrome OS) or ⌘ + / (Mac) to jump to the Tools menu.
     Press escape to return to last selected case text.
@@ -108,7 +100,7 @@
               <div class="sidebar-section d-none d-lg-block" id="analysis-section">
                 <h3>
                   Analysis
-                  <a class="analysis-link" href="{% url "api" %}#analysis-fields">
+                  <a class="analysis-link" href="{% docs_url "data_formats" %}#analysis-fields">
                     <img class="analysis-info" alt="More information about analysis fields" src="{% static "img/icons/question.svg" %}">
                   </a>
                 </h3>

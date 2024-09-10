@@ -1,7 +1,6 @@
-version: '2.2'
 services:
     db:
-        image: harvardlil/capstone-postgres:0.6-db4d5dc41ff0371933fb6e4e7ffd051e
+        image: registry.lil.tools/harvardlil/cap-db:0.13-355de4ae9825784849037c8870a24d41
         platform: linux/amd64
         environment:
             POSTGRES_PASSWORD: password
@@ -10,7 +9,7 @@ services:
     redis:
         image: redis:6.0.15
     elasticsearch:
-        image: docker.elastic.co/elasticsearch/elasticsearch:7.17.2
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.17.24
         environment:
           - node.name=es01
           - bootstrap.memory_lock=true
@@ -28,7 +27,7 @@ services:
         ports:
           - 127.0.0.1:9200:9200
     web:
-        image: harvardlil/capstone:186-961af45c62e4fde35a03f9524a635f8b
+        image: registry.lil.tools/harvardlil/cap-web:219-fbf58c21dc16ec55b65435e9c81e0a4c
         platform: linux/amd64
         volumes:
             # NAMED VOLUMES
@@ -44,9 +43,18 @@ services:
         environment:
             # let Django load Docker-specific settings conditionally
             - DOCKERIZED=True
+            - DJANGO_ALLOW_ASYNC_UNSAFE=true
+            - DJANGO_LIVE_TEST_SERVER_ADDRESS=0.0.0.0:8000
         extra_hosts:
           - "case.test:127.0.0.1"
           - "api.case.test:127.0.0.1"
+          - "cite.case.test:127.0.0.1"
+        networks:
+          default:
+            aliases:
+              - 'case.test'
+              - 'api.case.test'
+              - 'cite.case.test'
         ports:
             - 127.0.0.1:8000:8000
             - 127.0.0.1:8080:8080
@@ -56,7 +64,10 @@ services:
             - SYS_PTRACE
 
 volumes:
-    db_data_11:
-    node_modules:
-    esdata02:
-      driver: local
+  db_data_11:
+  node_modules:
+  esdata02:
+    driver: local
+
+networks:
+  default:

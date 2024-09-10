@@ -19,9 +19,6 @@ dictdiffer          # supports a hack to avoid clobbering timelines with outdate
 # celery
 celery[redis,sqs]   # task queue
 pycurl              # let celery talk to SQS queue
-flower              # monitoring
-watchdog            # restart celery in dev (via 'watchmedo' command)
-argh                # needed by watchdog
 
 # xml
 lxml
@@ -33,8 +30,7 @@ https://github.com/gawel/pyquery/archive/ca82465e8c049ea5f0c18586a32169338125cff
 psycopg2            # postgres connector
 redis               # redis connector
 python-redis-lock   # cross-process locks
-python-rocksdb      # key-value store for ngrams
-Cython<3.0          # for compiling python-rocksdb
+https://github.com/bensteinberg/python-rocksdb/archive/0bf7dbeffa7aafd82835fc25c23f200b3eff48fa.zip#egg=python-rocksdb  # key-value store for ngrams; fork pins Cython
 msgpack             # for storing data in KV store
 
 # Django stuff
@@ -45,12 +41,12 @@ django-model-utils
 django-simple-history  # model versioning
 django-redis           # use redis as Django cache backend
 django-hosts           # URL routing across subdomains
-django-webpack-loader  # include assets from webpack
 django-capture-tag     # capture values in templates
 django-db-file-storage # use db to store FileField files
 django-bootstrap4      # render bootstrap forms in django templates
 django-extensions
 django-pipeline
+django-vite            # vite integration
 
 # Admin stuff
 pip-tools
@@ -63,6 +59,7 @@ pytest-django
 pytest-xdist       # run tests in parallel with pytest -n
 pytest-cov         # record code coverage
 pytest-redis       # redisdb fixture
+pytest-playwright  # playwright tests
 moto
 flake8
 factory-boy        # mocking

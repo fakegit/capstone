@@ -1,6 +1,6 @@
 import hashlib
 import concurrent.futures
-from copy import copy 
+from copy import copy
 from functools import reduce
 
 import rest_framework.request
@@ -13,6 +13,7 @@ from django.db import connections
 from django.db.models import QuerySet
 from django.http import QueryDict
 from django.test.utils import CaptureQueriesContext
+from django.test.client import RequestFactory
 from django.utils.functional import SimpleLazyObject
 from django_hosts import reverse as django_hosts_reverse
 from elasticsearch import Elasticsearch
@@ -23,13 +24,21 @@ from config.logging import logger
 
 
 def send_new_signup_email(request, user):
-    token_url = reverse('verify-user', kwargs={'user_id':user.pk, 'activation_nonce': user.get_activation_nonce()}, scheme="https")
+    token_url = reverse('verify-user', kwargs={
+        'user_id': user.pk,
+        'activation_nonce': user.get_activation_nonce()
+    }, scheme="https")
     send_mail(
         'Caselaw Access Project: Verify your email address',
-        "Please click here to verify your email address: \n\n%s \n\nIf you received this message in error, please ignore it." % token_url,
+        ("Welcome to the Caselaw Access Project!\n\n"
+         "Please click here to verify your email address:\n\n"
+         f"{token_url}\n\n"
+         "If you received this message in error, please ignore it.\n\n"
+         "Best wishes,\n\nThe CAP Team"),
         settings.DEFAULT_FROM_EMAIL,
         [user.email],
-        fail_silently=False, )
+        fail_silently=False
+    )
     logger.info("sent new_signup email for %s" % user.email)
 
 
@@ -125,7 +134,7 @@ def api_reverse(viewname, args=None, kwargs=None, request=None, format=None, **e
     if format is not None:
         kwargs = kwargs or {}
         kwargs['format'] = format
-    scheme = 'http' if settings.DEBUG else 'https'
+    scheme = 'https' if settings.MAKE_HTTPS_URLS else 'http'
     out = django_hosts_reverse(viewname, args=args, kwargs=kwargs, host='api', scheme=scheme, **extra)
 
     # for debugging, replace 'http://api.case.test:8000' with value of settings.API_HOST_OVERRIDE
@@ -261,3 +270,11 @@ def api_request(request, viewset, method, url_kwargs={}, get_params={}):
     api_request.GET.update(get_params)
 
     return viewset.as_view({'get': method})(api_request, **url_kwargs)
+
+
+def call_serializer(Serializer, item, query_params=None):
+    """
+        Make a fake DRF request so we can call a DRF serializer with the expected context.
+    """
+    request = rest_framework.request.Request(RequestFactory().get('/', query_params))
+    return Serializer(item, context={'request': request}).data

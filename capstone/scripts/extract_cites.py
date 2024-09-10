@@ -36,6 +36,9 @@ def extract_citations(case, html, xml):
     eyecite_cites = []
     cite_home_url = reverse('cite_home').rstrip('/')
 
+    def no_cites_found():
+        return html, xml, [c.id for c in case.extracted_citations.all()], []
+
     # Annotation is faster if we extract paragraph by paragraph. So first get an index of each paragraph in the
     # html and xml to insert annotations into, and parse a cleaned version of the source html to extract citations
     # from:
@@ -75,8 +78,7 @@ def extract_citations(case, html, xml):
 
     # short circuit if no cites found
     if not extracted_els:
-        # delete all existing cites
-        return html, xml, list(case.extracted_citations.all()), []
+        return no_cites_found()
 
     # Look up cases referred to by cites. cases_by_cite gets populated like:
     #   cases_by_cite['cite']['1 U.S. 1'] = {(<case_id>, <decision_date_original>, <frontend_url>)}
@@ -138,14 +140,15 @@ def extract_citations(case, html, xml):
 
             resolution = resolution_by_cite[eyecite_cite]
             first_cite = clusters[resolution][0]
+            corrected_cite = first_cite.corrected_citation()
             case_ids_attr = None
 
             # get URL attributes for link annotation
             if isinstance(resolution, Resource):
-                target_url = cite_home_url + "/citations/?q=" + urllib.parse.quote(first_cite.corrected_citation())
+                target_url = cite_home_url + "/citations/?q=" + urllib.parse.quote(corrected_cite)
             else:
                 # cite resolved to a tuple of CaseMetadata objects
-                case_ids_attr = ','.join(str(r.id) for r in resolution)
+                case_ids_attr = ','.join(sorted(str(r.id) for r in resolution))
                 if len(resolution) == 1:
                     # attempt to jump directly to cited page, if pin cite starts with digits
                     pin_cite = ''
@@ -168,7 +171,7 @@ def extract_citations(case, html, xml):
             span = eyecite_cite.span()
             html_annotations.append((
                 span,
-                f'<a href="{target_url}" class="citation" data-index="{cite_index}"' +
+                f'<a href="{target_url}" class="citation" data-index="{cite_index}" data-cite="{corrected_cite}"' +
                 (f' data-case-ids="{case_ids_attr}"' if case_ids_attr else '') + '>',
                 '</a>'
             ))
@@ -183,7 +186,15 @@ def extract_citations(case, html, xml):
         # annotate paragraph in html and xml
         if html_annotations:
             for annot_el, annotations in ((xml_els[el_id], xml_annotations), (html_els[el_id], html_annotations)):
-                annot_el.html(annotate(el_text, annotations, annot_el.html(), annotator=annotator))
+                # for annotation to work reliably, we want to replace long html blocks like page numbers
+                # with single unicode characters so the diff between text and html is reliable in the annotate function.
+                # then once we get the result we replace back.
+                el_html = annot_el.html()
+                strings_to_protect = re.findall(r'<a[^>]*>.*?</a>|<[^>]+>', el_html, flags=re.S)
+                el_html, char_mapping = encode_strings_as_unicode(el_html, strings_to_protect)
+                el_html = annotate(el_text, annotations, el_html, annotator=partial(annotator, char_mapping))
+                el_html = decode_unicode_to_strings(el_html, char_mapping)
+                annot_el.html(el_html)
 
     # make each ExtractedCitation
     for resolution, cluster in clusters.items():
@@ -240,25 +251,23 @@ def extract_citations(case, html, xml):
 
             found_cites.append(extracted_cite)
 
-    if found_cites:
-        # serialize annotated html and xml
-        html = serialize_html(html_pq)
-        xml = serialize_xml(xml_pq).decode('utf8')
+    if not found_cites:
+        return no_cites_found()
 
-        # compare newly found cites to existing ones in db
-        new_cites_lookup = {cite_key(c): c for c in found_cites}
-        cites_to_delete  = []
-        for e in case.extracted_citations.all():
-            key = cite_key(e)
-            if key in new_cites_lookup:
-                new_cites_lookup.pop(key)
-            else:
-                cites_to_delete.append(e)
-        cites_to_create = new_cites_lookup.values()
+    # serialize annotated html and xml
+    html = serialize_html(html_pq)
+    xml = serialize_xml(xml_pq).decode('utf8')
 
-    else:
-        cites_to_delete = list(case.extracted_citations.all())
-        cites_to_create = []
+    # compare newly found cites to existing ones in db
+    new_cites_lookup = {cite_key(c): c for c in found_cites}
+    cites_to_delete  = []
+    for e in case.extracted_citations.all():
+        key = cite_key(e)
+        if key in new_cites_lookup:
+            new_cites_lookup.pop(key)
+        else:
+            cites_to_delete.append(e.id)
+    cites_to_create = new_cites_lookup.values()
 
     return html, xml, cites_to_delete, cites_to_create
 
@@ -338,17 +347,32 @@ def clean_text(text):
     return text
 
 
-def annotator(before, text, after):
+def encode_strings_as_unicode(big_string, substrings):
+    """ Replace substrings in big_string with unique characters in the unicode private use range. """
+    char_mapping = []
+    for i, substring in enumerate(substrings):
+        unicode_char = chr(0xE000 + i)  # start of the private use range
+        char_mapping.append([substring, unicode_char])
+        big_string = big_string.replace(substring, unicode_char, 1)
+    return big_string, char_mapping
+
+
+def decode_unicode_to_strings(big_string, char_mapping):
+    """Undo encode_strings_as_unicode by replacing each pair in char_mapping."""
+    for s, c in char_mapping:
+        big_string = big_string.replace(c, s)
+    return big_string
+
+
+def annotator(char_mapping, before, encoded_text, after):
     """
         Attach annotation tags to a stretch of citation text. If text contains a link or an unbalanced tag, wrap
-        those tags:
-        >>> assert annotator("<tag>", "foo", "</tag>") == "<tag>foo</tag>"
-        >>> assert annotator("<tag>", "foo<em>bar", "</tag>") == "<tag>foo</tag><em><tag>bar</tag>"
-        >>> assert annotator("<tag>", "foo<a>bar</a>baz", "</tag>") == "<tag>foo</tag><a>bar</a><tag>baz</tag>"
+        those tags.
     """
+    text = decode_unicode_to_strings(encoded_text, char_mapping)
     if '<a' in text or not is_balanced_html(text):
-        text = re.sub(r"<a[^>]*>.*?</a>|<[^>]+>", rf"{after}\g<0>{before}", text)
-    return before + text + after
+        encoded_text = re.sub(r'[\uE000-\uF8FF]', rf"{after}\g<0>{before}", encoded_text)
+    return before + encoded_text + after
 
 
 def cite_key(extracted_cite):

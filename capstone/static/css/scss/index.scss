@@ -85,6 +85,7 @@ p.section-subtitle {
 
 .boxcontainer-img {
   max-width: 100%;
+  height: auto;
 }
 
 .short-standalone-quote {
@@ -146,6 +147,13 @@ p.section-subtitle {
 * == Map Section ==
 *
 ***************************************************************/
+// This wrapper allows to apply a minimal height on elements whose rendering is delayed (JS) as to reduce layout shift.
+.layout-shift-buffer {
+  min-height: 286px;
+  @include media-breakpoint-up(md) {
+    min-height: 90vh;
+  }
+}
 
 .map-section {
   background-color: $color-black;

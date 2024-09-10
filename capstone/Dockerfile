@@ -25,7 +25,9 @@ RUN apt-get update \
     && apt-get install -y librocksdb5.17 librocksdb-dev libsnappy-dev zlib1g-dev libbz2-dev libgflags-dev liblz4-dev rocksdb-tools \
     && apt-get install -y libx11-xcb1 libxtst6 libgtk-3-0 libnss3 \
     && echo libhyperscan5 libhyperscan/cpu-ssse3 boolean true | debconf-set-selections && apt-get -t buster-backports install -y libhyperscan-dev \
-    && apt-get install -y tidy
+    && apt-get install -y tidy \
+    && apt-get install -y libdrm2 libgbm-dev \
+    && apt-get install --no-install-recommends libdbus-glib-1-2
 
 # pip
 RUN mkdir /app
@@ -42,10 +44,13 @@ RUN echo "--modules-folder /node_modules" > /.yarnrc
 COPY package.json /app
 COPY yarn.lock /app
 # pin node version -- see https://github.com/nodesource/distributions/issues/33
-RUN curl -o nodejs.deb https://deb.nodesource.com/node_14.x/pool/main/n/nodejs/nodejs_14.19.1-1nodesource1_amd64.deb \
+RUN curl -o nodejs.deb https://deb.nodesource.com/node_14.x/pool/main/n/nodejs/nodejs_14.21.3-1nodesource1_amd64.deb \
     && dpkg -i ./nodejs.deb \
     && rm nodejs.deb \
     && npm install -g yarn@1.22.5 \
     && yarn install --frozen-lockfile \
     && rm package.json \
     && rm yarn.lock
+
+# Install Playwright browsers for integration tests
+RUN playwright install chromium firefox

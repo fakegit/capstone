@@ -1,33 +1,34 @@
 Capstone
 ========
 
-[![test status](https://github.com/harvard-lil/capstone/actions/workflows/tests.yml/badge.svg)](https://circleci.com/gh/harvard-lil/capstone) [![codecov](https://codecov.io/gh/harvard-lil/capstone/branch/develop/graph/badge.svg)](https://codecov.io/gh/harvard-lil/capstone)
+[![test status](https://github.com/harvard-lil/capstone/actions/workflows/tests.yml/badge.svg)](https://github.com/harvard-lil/capstone/actions) [![codecov](https://codecov.io/gh/harvard-lil/capstone/branch/develop/graph/badge.svg)](https://codecov.io/gh/harvard-lil/capstone)
 
 This is the source code for [case.law](https://case.law), a website written by the Harvard Law School Library Innovation Lab to manage and serve court opinions. Other than several cases used for our automated testing, this repository does not contain case data. Case data may be obtained through the website.
 
-- [Project Background](#project-background)
-- [The Data](#the-data)
-  - [Format Documentation and Samples](#documentation-and-samples)
-  - [Obtaining Real Data](#obtaining-real-data)
-  - [Reporting Data Errors](#reporting-data-errors)
-  - [Errata](#errata)
-- [The Capstone Application](#the-capstone-application)
-- [CAPAPI](#capapi)
-- [Installing Capstone](#installing-capstone-and-capapi)
-- [Administering and Developing Capstone](#administering-and-developing-capstone)
-  - [Testing](#testing)
-  - [Requirements](#requirements)
-  - [Applying model changes](#applying-model-changes)
-  - [Stored Postgres functions](#stored-postgres-functions)
-  - [Running Command Line Scripts](#running-command-line-scripts)
-  - [Logging In](#logging-in)
-  - [Local debugging tools](#local-debugging-tools)
-  - [Download real data locally](#download-real-data-locally )
-  - [Model versioning](#model-versioning)
-  - [Working with javascript](#working-with-javascript)
-  - [Elasticsearch](#elasticsearch)
-- [Documentation](#documentation)
-- [Examples](#examples)
+- [Capstone](#capstone)
+  - [Project Background ](#project-background-)
+  - [The Data ](#the-data-)
+    - [Format Documentation and Samples ](#format-documentation-and-samples-)
+    - [Obtaining Real Data ](#obtaining-real-data-)
+    - [Reporting Data Errors ](#reporting-data-errors-)
+    - [Errata ](#errata-)
+  - [The Capstone Application ](#the-capstone-application-)
+  - [Installing Capstone and CAPAPI ](#installing-capstone-and-capapi-)
+    - [Hosts Setup ](#hosts-setup-)
+    - [Docker Setup ](#docker-setup-)
+  - [Administering and Developing Capstone ](#administering-and-developing-capstone-)
+    - [Testing ](#testing-)
+    - [Requirements ](#requirements-)
+    - [Applying model changes ](#applying-model-changes-)
+    - [Stored Postgres functions ](#stored-postgres-functions-)
+    - [Running Command Line Scripts ](#running-command-line-scripts-)
+    - [Logging In ](#logging-in-)
+    - [Local debugging tools ](#local-debugging-tools-)
+    - [Model versioning ](#model-versioning-)
+    - [Download real data locally ](#download-real-data-locally-)
+    - [Working with javascript ](#working-with-javascript-)
+    - [Elasticsearch ](#elasticsearch-)
+  - [Code examples ](#code-examples-)
 
 ## Project Background <a id="project-background"></a>
 The Caselaw Access Project is a large-scale digitization project hosted by the Harvard Law School [Library Innovation Lab.](http://lil.law.harvard.edu "LIL Website") Visit [case.law](https://case.law/) for more details.
@@ -107,10 +108,23 @@ From now on all commands starting with `#` are assumed to be run from within `do
 
 Load dev data:
 
+> ⚠️ **Note:** Make sure that Docker has sufficient resources allocated to run Elasticsearch. Lower allocations may cause `rebuild_search_index` to crash.
+> _Recommended minimum:_
+> - CPUs: 6
+> - Memory: 16 GB
+> - Swap: 1 GB
+> - Disk image: ~256 GB
+
     # fab init_dev_db
     # fab ingest_fixtures
     # fab import_web_volumes
+    # fab refresh_case_body_cache
     # fab rebuild_search_index
+
+To get ngrams working, run:
+
+    # mkdir test_data/ngrams
+    # fab ngram_jurisdictions
 
 Run the dev server:
 
@@ -123,14 +137,17 @@ If you are working on javascript files, frontend, use `fab run_frontend`:
     # fab run_frontend
 
 ## Administering and Developing Capstone <a id="administering-and-developing-capstone"></a>
-- [Testing](#testing)
-- [Requirements](#requirements)
-- [Applying model changes](#applying-model-changes)
-- [Stored Postgres functions](#stored-postgres-functions)
-- [Running Command Line Scripts](#running-command-line-scripts)
-- [Local debugging tools](#local-debugging-tools)
-- [Download real data locally](#download-real-data-locally )
-- [Model versioning](#model-versioning)
+    - [Testing ](#testing-)
+    - [Requirements ](#requirements-)
+    - [Applying model changes ](#applying-model-changes-)
+    - [Stored Postgres functions ](#stored-postgres-functions-)
+    - [Running Command Line Scripts ](#running-command-line-scripts-)
+    - [Logging In ](#logging-in-)
+    - [Local debugging tools ](#local-debugging-tools-)
+    - [Model versioning ](#model-versioning-)
+    - [Download real data locally ](#download-real-data-locally-)
+    - [Working with javascript ](#working-with-javascript-)
+    - [Elasticsearch ](#elasticsearch-)
 
 ### Testing <a id="testing"></a>
 
@@ -245,9 +262,8 @@ or ingest a single volume downloaded from that section with the command `fab imp
 
 ### Working with javascript <a id="working-with-javascript"></a>
 
-We use [Vue CLI 3](https://cli.vuejs.org/) to compile javascript files, so you can use modern javascript and it will be
-transpiled to support the browsers listed in package.json. New javascript entrypoints can be added to vue.config.js and
-included in templates with `{% render_bundle %}`.
+We use Vite to compile javascript files. New javascript entrypoints can be added to vite.config.js and
+included in templates with `{% vite_asset %}`.
 
 To see javascript changes live, run the dev server with
 

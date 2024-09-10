@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from copy import deepcopy
 
@@ -51,7 +52,7 @@ INSTALLED_APPS = [
     'bootstrap4',   # bootstrap form rendering
     'drf_yasg',   # API specification
     'django_hosts',     # subdomain routing
-    'webpack_loader',   # webpack assets
+    'django_vite',  # vite assets
     'elasticsearch_dsl',
     'django_elasticsearch_dsl',
     'django_elasticsearch_dsl_drf',
@@ -84,6 +85,9 @@ MIDDLEWARE = [
 
     # docs say this should come "first", though we're not putting it quite that early
     'django_hosts.middleware.HostsRequestMiddleware',
+
+    # before cache_header_middleware so accessing user won't affect caching
+    'capapi.middleware.access_log_middleware',
 
     # cache middleware should come before:
     # - CsrfViewMiddleware, to skip caching on views that use csrf
@@ -132,6 +136,8 @@ API_HOST_OVERRIDE = None
 # API_HOST_OVERRIDE = 'https://api.case.law'
 
 DOCS_SHOW_DRAFTS = False
+SHOW_DEPRECATION_BANNER = False
+DISABLE_SIGNUPS = False
 
 TEMPLATES = [
     {
@@ -156,6 +162,8 @@ TEMPLATES = [
 
 TEMPLATE_VISIBLE_SETTINGS = (
     'CASE_MAX_YEAR',
+    'SHOW_DEPRECATION_BANNER',
+    'DISABLE_SIGNUPS'
 )
 
 WSGI_APPLICATION = 'config.wsgi.application'
@@ -274,6 +282,18 @@ PIPELINE = {
     'JS_COMPRESSOR': None,
 }
 
+
+# Whitenoise checks for immutable files (which can be cached forever) by checking if "foo.somehash.extension" has
+# a "foo.extension" file next to it. This doesn't work for vite outputs, which don't have unhashed versions.
+# Instead, check for files with a dotted segment consisting of 8 to 12 hex characters.
+# See https://github.com/MrBin99/django-vite#notes
+
+def immutable_file_test(path, url):
+    return re.match(r"^.+\.[0-9a-f]{8,12}\..+$", url)
+
+WHITENOISE_IMMUTABLE_FILE_TEST = immutable_file_test
+
+
 # define storages
 # each of these can be imported from capdb.storages, e.g. `from capdb.storages import ingest_storage`
 
@@ -372,6 +392,10 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 CELERY_TIMEZONE = 'UTC'
+CELERY_TASK_ROUTES = {
+    "scripts.export_cap_static.export_cases_by_volume": {"queue": "cap_static"},
+}
+
 
 ### CAP API settings ###
 
@@ -532,12 +556,9 @@ HARVARD_IP_RANGES = [
     '134.174.0.0/16',
 ]
 
-WEBPACK_LOADER = {
-    'DEFAULT': {
-        'BUNDLE_DIR_NAME': 'dist/',
-        'STATS_FILE': os.path.join(BASE_DIR, 'webpack-stats.json'),
-    }
-}
+DJANGO_VITE_ASSETS_PATH = os.path.join(STATICFILES_DIRS[0], 'dist')
+DJANGO_VITE_DEV_SERVER_HOST = 'case.test'
+DJANGO_VITE_DEV_SERVER_PORT = 8080
 
 # used for encrypting redacted text -- this should usually not be set, but only entered on demand
 REDACTION_KEY = None
@@ -595,3 +616,6 @@ TESTING = False
 
 # max year for which we have caselaw
 CASE_MAX_YEAR = 2020
+
+# setting for temporary usage assessment
+USAGE_LOG_PATH = None

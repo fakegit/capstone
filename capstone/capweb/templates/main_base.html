@@ -1,9 +1,10 @@
-{% load static %}{% load pipeline %}{% load capweb_static %}{% load render_bundle from webpack_loader %}{% load capture_tags %}<!DOCTYPE html>
+{% load static %}{% load pipeline %}{% load capweb_static %}{% load django_vite %}{% load capture_tags %}<!DOCTYPE html>
 <html lang="en">
   <head prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# article: http://ogp.me/ns/article#">
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
 
     {# title #}
     {% capture as title_out silent %}{% block title %}{% if title %}{{ title }}{% endif %}{% endblock title %}{% block title_suffix %} | Caselaw Access Project{% endblock title_suffix %}{% endcapture %}
@@ -61,12 +62,17 @@
 
     {# if a stylesheet has to import base.scss, it should override this block instead of going in extra_head to avoid double import #}
     {% block base_css %}{% stylesheet "base" %}{% endblock %}
-    {% render_bundle 'chunk-common' %}
-    {% render_bundle 'base' %}
+    {% vite_asset 'static/js/base.js' %}
     {% if extra_head %}{{ extra_head }}{% endif %}
     {% block extra_head %}{% endblock %}
   </head>
   <body class="hamburger-menu-closed" tabindex="-1">
+
+    {% if SHOW_DEPRECATION_BANNER %}
+      <div class="deprecation-banner">
+        You are currently viewing the retired version of the Caselaw Access Project's website. This version of the site and the API will sunset on September 1, 2024.
+      </div>
+    {% endif %}
 
     {% include "includes/nav.html" %}
     <div id="content-and-footer" tabindex="-1">

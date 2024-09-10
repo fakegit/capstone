@@ -3,7 +3,7 @@
 {% load pipeline %}
 {% load api_url %}
 {% load snippet %}
-{% load render_bundle from webpack_loader %}
+{% load django_vite %}
 {% block base_css %}{% stylesheet 'search' %}{% endblock %}
 
 {% block top_section_style %}{% endblock %}
@@ -15,7 +15,9 @@
 {% block sidebar_menu %}{% endblock %}
 
 {% block main_content %}
-  <div id="app" class="content"></div>
+  <div class="layout-shift-buffer">
+    <div id="app" class="content"></div>
+  </div>
 
   <script>
     const config = {
@@ -38,5 +40,5 @@
     javascript, your best bet is to directly use <a href="{% api_url "api-root" %}">the API this search interface
     queries.</a> There is no data available in this search interface that is not available through the API.
   </noscript>
-  {% render_bundle 'search' %}
+  {% vite_asset 'static/js/search/main.js' %}
 {% endblock %}
